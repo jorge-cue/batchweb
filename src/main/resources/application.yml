@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: batchweb
+
+  datasource:
+    url: jdbc:h2:mem:default
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: '{noop}'
+
+logging:
+  level:
+    root: warn
+    org.springdemo.batchcli: debug
