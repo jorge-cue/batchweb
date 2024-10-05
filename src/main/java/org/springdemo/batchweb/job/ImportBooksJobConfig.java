@@ -21,16 +21,14 @@ import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.mapping.FieldSetMapper;
 import org.springframework.batch.item.file.separator.DefaultRecordSeparatorPolicy;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.batch.item.file.transform.FieldSet;
 import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.validation.BindException;
 
+import java.util.Map;
 import java.util.function.Function;
 
 @Configuration
@@ -66,11 +64,12 @@ public class ImportBooksJobConfig {
 
     @Bean(name = "importBooksStartReader")
     @StepScope
-    public FlatFileItemReader<Book> bookReader(@Value("#{jobParameters['inputFileName']}") String inputFileName, LineMapper<Book> lineMapper) {
-        log.info("Book Reader Using resource file {}" , inputFileName );
-        Resource resource = new ClassPathResource(inputFileName);
+    public FlatFileItemReader<Book> bookReader(@Value("#{jobParameters}") Map<String, Object> jobParameters, LineMapper<Book> lineMapper) {
+        Resource resource = (Resource) jobParameters.get(JobParameterNames.FILE_RESOURCE);
+        String correlationId = (String) jobParameters.get(JobParameterNames.CORRELATION_ID);
+        log.info("Book Reader Using resource file {}" , resource.getFilename() );
         return new FlatFileItemReaderBuilder<Book>()
-                .name("importBooksStartReader:" + inputFileName)
+                .name("importBooksStartReader." + correlationId)
                 .linesToSkip(1) // Skip title line
                 .recordSeparatorPolicy(new DefaultRecordSeparatorPolicy("\""))
                 .resource(resource)
@@ -91,7 +90,7 @@ public class ImportBooksJobConfig {
     @Bean
     LineTokenizer lineTokenizer() {
         var lineTokenizer = new DelimitedLineTokenizer(",");
-        lineTokenizer.setNames(new String[] {"ISBN", "TITLE", "AUTHORS", "YEAR_PUBLISHED"});
+        lineTokenizer.setNames("ISBN", "TITLE", "AUTHORS", "YEAR PUBLISHED");
         return lineTokenizer;
     }
 

@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class BatchwebApplication {
+public class BatchWEBApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(BatchwebApplication.class, args);
+		SpringApplication.run(BatchWEBApplication.class, args);
 	}
 
 }
