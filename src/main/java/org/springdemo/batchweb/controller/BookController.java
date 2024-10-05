@@ -41,11 +41,11 @@ public class BookController {
 
     @SuppressWarnings("ReassignedVariable")
     @PostMapping(path = "/import")
-    public ResponseEntity<ImportBookResponse> importBook(@RequestParam("file") MultipartFile file, @RequestHeader(value = "X-CORRELATION-ID") String correlationId) throws
-            JobInstanceAlreadyCompleteException,
-            JobExecutionAlreadyRunningException,
-            JobParametersInvalidException,
-            JobRestartException {
+    public ResponseEntity<ImportBookResponse> importBook(
+            @RequestParam("file") MultipartFile file,
+            @RequestHeader("X-Correlation-ID") String correlationId)
+            throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException,
+                   JobParametersInvalidException, JobRestartException {
         final var jobParametersBuilder = new JobParametersBuilder();
         if (Strings.isEmpty(correlationId)) {
             correlationId = UUID.randomUUID().toString();
@@ -62,8 +62,9 @@ public class BookController {
                 jobExecution.getEndTime(),
                 jobExecution.getStatus().name(),
                 jobExecution.getExitStatus().getExitDescription());
-        final var location = UriComponentsBuilder.fromPath("/api/v1/books/import/execution/{executionId}").build(jobExecution.getId());
-        return ResponseEntity.created(location).body(importBookResponse);
+        final var location = UriComponentsBuilder.fromPath("/api/v1/books/import/execution/{executionId}")
+                .build(jobExecution.getId());
+        return ResponseEntity.created(location).header("X-Correlation-ID", correlationId).body(importBookResponse);
     }
 
     @GetMapping(path = "/import/execution/{executionId:\\d+}")
