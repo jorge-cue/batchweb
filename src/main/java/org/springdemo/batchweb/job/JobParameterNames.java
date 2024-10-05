@@ -2,7 +2,7 @@ package org.springdemo.batchweb.job;
 
 public interface JobParameterNames {
 
-    String FILE_RESOURCE = "file-resource";
+    String INPUT_STREAM = "input-stream";
     String CORRELATION_ID = "correlation-id";
 
 }

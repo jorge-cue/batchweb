@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Batch WEB Demo</title>
+</head>
+<body>
+<div>
+    <form action="/api/v1/books/import" method="post" enctype="multipart/form-data" >
+        <fieldset>
+            <div>
+                <label for="file">File: </label>
+                <input type="file" id="file" name="file">
+            </div>
+            <button type="submit">Send</button>
+        </fieldset>
+    </form>
+</div>
+</body>
+</html>

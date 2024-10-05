@@ -10,5 +10,5 @@ spring:
 
 logging:
   level:
-    root: warn
+    root: info
     org.springdemo.batchcli: debug

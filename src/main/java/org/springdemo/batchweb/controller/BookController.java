@@ -1,6 +1,8 @@
 package org.springdemo.batchweb.controller;
 
 import org.apache.logging.log4j.util.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springdemo.batchweb.controller.dto.ImportBookResponse;
 import org.springdemo.batchweb.exception.JobNotFoundException;
 import org.springdemo.batchweb.job.JobParameterNames;
@@ -14,17 +16,22 @@ import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteExcep
 import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/api/v1/books")
 public class BookController {
+
+    private static final Logger log = LoggerFactory.getLogger(BookController.class);
 
     private final JobLauncher jobLauncher;
 
@@ -43,15 +50,20 @@ public class BookController {
     @PostMapping(path = "/import")
     public ResponseEntity<ImportBookResponse> importBook(
             @RequestParam("file") MultipartFile file,
-            @RequestHeader("X-Correlation-ID") String correlationId)
+            @RequestHeader(value = "X-Correlation-ID", required = false, defaultValue = "") String correlationId)
             throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException,
-                   JobParametersInvalidException, JobRestartException {
+            JobParametersInvalidException, JobRestartException, IOException {
+        log.info("Import book started");
         final var jobParametersBuilder = new JobParametersBuilder();
         if (Strings.isEmpty(correlationId)) {
             correlationId = UUID.randomUUID().toString();
+            log.info("Generated Correlation ID: {}", correlationId);
         }
+        var tempFile = File.createTempFile(UUID.randomUUID().toString(), ".tmp");
+        log.info("Generated temp file: {}", tempFile.getAbsolutePath());
+        file.transferTo(tempFile);
         jobParametersBuilder.addString(JobParameterNames.CORRELATION_ID, correlationId, true);
-        jobParametersBuilder.addJobParameter(JobParameterNames.FILE_RESOURCE, file.getResource(), Resource.class, false);
+        jobParametersBuilder.addString(JobParameterNames.INPUT_STREAM, tempFile.getAbsolutePath(), false);
         final var jobExecution = jobLauncher.run(job, jobParametersBuilder.toJobParameters());
         final var importBookResponse = new ImportBookResponse(
                 correlationId,

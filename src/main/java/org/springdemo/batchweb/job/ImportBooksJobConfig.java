@@ -25,9 +25,12 @@ import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -65,9 +68,9 @@ public class ImportBooksJobConfig {
     @Bean(name = "importBooksStartReader")
     @StepScope
     public FlatFileItemReader<Book> bookReader(@Value("#{jobParameters}") Map<String, Object> jobParameters, LineMapper<Book> lineMapper) {
-        Resource resource = (Resource) jobParameters.get(JobParameterNames.FILE_RESOURCE);
+        String filePath = (String) jobParameters.get(JobParameterNames.INPUT_STREAM);
+        Resource resource = new FileSystemResource(filePath);
         String correlationId = (String) jobParameters.get(JobParameterNames.CORRELATION_ID);
-        log.info("Book Reader Using resource file {}" , resource.getFilename() );
         return new FlatFileItemReaderBuilder<Book>()
                 .name("importBooksStartReader." + correlationId)
                 .linesToSkip(1) // Skip title line
