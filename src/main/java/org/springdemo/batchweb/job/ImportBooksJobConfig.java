@@ -25,12 +25,11 @@ import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -38,6 +37,15 @@ import java.util.function.Function;
 public class ImportBooksJobConfig {
 
     private static final Logger log = LoggerFactory.getLogger(ImportBooksJobConfig.class);
+
+    public static final String IMPORT_BOOKS_JOB_NAME = "importBooksJob";
+    public static final String IMPORT_BOOKS_FILE_PATH_PARAMETER = "file-path";
+    public static final String IMPORT_BOOKS_CORRELATION_ID_PARAMETER = "correlation-id";
+
+    private static final String FIELD_NAME_ISBN = "ISBN";
+    private static final String FIELD_NAME_TITLE = "TITLE";
+    private static final String FIELD_NAME_AUTHORS = "AUTHORS";
+    private static final String FIELD_NAME_YEAR_PUBLISHED = "YEAR_PUBLISHED";
 
     @Bean
     public Job importBooksJob(JobRepository jobRepository, Step importBooksStart, JobExecutionListener jobListener,
@@ -68,13 +76,14 @@ public class ImportBooksJobConfig {
     @Bean(name = "importBooksStartReader")
     @StepScope
     public FlatFileItemReader<Book> bookReader(@Value("#{jobParameters}") Map<String, Object> jobParameters, LineMapper<Book> lineMapper) {
-        String filePath = (String) jobParameters.get(JobParameterNames.INPUT_STREAM);
-        Resource resource = new FileSystemResource(filePath);
-        String correlationId = (String) jobParameters.get(JobParameterNames.CORRELATION_ID);
+        String filePath = (String) jobParameters.get(IMPORT_BOOKS_FILE_PATH_PARAMETER);
+        var path = Path.of(filePath);
+        Resource resource = new PathResource(path);
+        String correlationId = (String) jobParameters.get(IMPORT_BOOKS_CORRELATION_ID_PARAMETER);
         return new FlatFileItemReaderBuilder<Book>()
                 .name("importBooksStartReader." + correlationId)
                 .linesToSkip(1) // Skip title line
-                .recordSeparatorPolicy(new DefaultRecordSeparatorPolicy("\""))
+                .recordSeparatorPolicy(new DefaultRecordSeparatorPolicy())
                 .resource(resource)
                 .strict(true)
                 .lineMapper(lineMapper)
@@ -91,22 +100,22 @@ public class ImportBooksJobConfig {
     }
 
     @Bean
-    LineTokenizer lineTokenizer() {
-        var lineTokenizer = new DelimitedLineTokenizer(",");
-        lineTokenizer.setNames("ISBN", "TITLE", "AUTHORS", "YEAR PUBLISHED");
+    LineTokenizer lineTokenizer() throws Exception {
+        var lineTokenizer = new DelimitedLineTokenizer();
+        lineTokenizer.setDelimiter(",");
+        lineTokenizer.setNames(FIELD_NAME_ISBN, FIELD_NAME_TITLE, FIELD_NAME_AUTHORS, FIELD_NAME_YEAR_PUBLISHED);
+        lineTokenizer.setQuoteCharacter('"');
+        lineTokenizer.setStrict(true);
+        lineTokenizer.afterPropertiesSet();
         return lineTokenizer;
     }
 
     @Bean
     FieldSetMapper<Book> fieldSetMapper() {
-        return fieldSet -> Book.builder()
-                .isbn(fieldSet.readString("ISBN"))
-                .title(fieldSet.readString("TITLE"))
-                .authors(fieldSet.readString("AUTHORS"))
-                .yearPublished(fieldSet.readInt("YEAR_PUBLISHED"))
-                .build();
+        return fieldSet -> new Book(null,
+                fieldSet.readString(FIELD_NAME_ISBN), fieldSet.readString(FIELD_NAME_TITLE),
+                fieldSet.readString(FIELD_NAME_AUTHORS), fieldSet.readInt(FIELD_NAME_YEAR_PUBLISHED));
     }
-
     @Bean
     public ItemProcessor<Book, BookEntity> bookProcessor(Function<Book, BookEntity> mapper) {
         return mapper::apply;
@@ -115,8 +124,9 @@ public class ImportBooksJobConfig {
     @Bean
     public ItemWriter<BookEntity> bookWriter(BookRepository bookRepository) {
         return chunk -> {
+            log.info("About to save chunk of {} books: items %n{}", chunk.getItems().size(), chunk.getItems());
             var items = bookRepository.saveAll(chunk.getItems());
-            log.debug("Books inserted {}", items);
+            log.info("Books saved {}", items);
         };
     }
 
@@ -124,7 +134,7 @@ public class ImportBooksJobConfig {
     public JobExecutionListener jobExecutionListener(JobRepository jobRepository) {
         return new JobExecutionListener() {
 
-            private static final Logger log = LoggerFactory.getLogger("org.springdemo.batchcli.job.ImportBooksJobExecutionListener");
+            private static final Logger log = LoggerFactory.getLogger("org.springdemo.batchweb.job.ImportBooksJobExecutionListener");
 
             @Override
             public void beforeJob(final JobExecution jobExecution) {
@@ -149,7 +159,7 @@ public class ImportBooksJobConfig {
     public StepExecutionListener stepExecutionListener(final JobRepository jobRepository) {
         return new StepExecutionListener() {
 
-            private static final Logger log = LoggerFactory.getLogger("org.springdemo.batchcli.job.ImportBooksStepExecutionListener");
+            private static final Logger log = LoggerFactory.getLogger("org.springdemo.batchweb.job.ImportBooksStepExecutionListener");
 
             @Override
             public void beforeStep(final StepExecution stepExecution) {
@@ -175,12 +185,7 @@ public class ImportBooksJobConfig {
             if (dto == null) {
                 return null;
             }
-            return BookEntity.builder()
-                    .isbn(dto.isbn())
-                    .title(dto.title())
-                    .authors(dto.authors())
-                    .yearPublished(dto.yearPublished())
-                    .build();
+            return new BookEntity(dto.id(), dto.isbn(), dto.title(), dto.authors(), dto.yearPublished());
         };
     }
 }

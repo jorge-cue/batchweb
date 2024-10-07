@@ -1,0 +1,16 @@
+POST localhost:8080/api/v1/books/import/start
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+X-Correlation-ID: {{$random.uuid}}
+
+--WebAppBoundary
+Content-Disposition: form-data name='file'; filename='sample-data.csv'
+Content-Type: text/csv
+
+9781935182955,Spring Batch in Action,"Cagaluégnes, Templier, Gregory, Bazoud",2012
+9781617296956,"Spring Microservices in Action, Second Edition","Carnell, Sánchez",2021
+--WebAppBoundary
+
+###
+# Take the localtion header from the response of the POST above and send a GET to it
+
+GET localhost:8080/api/v1/books/import/status/fddfbd7c-0455-4c34-a906-d58fbff43bae
